@@ -14,6 +14,7 @@ static int id_pis = 1;
 static int id_sup = 1;
 static int id_dis = 1;
 
+struct discodu;
 struct disco;
 struct superficie;
 struct pista;
@@ -85,74 +86,82 @@ struct DECIMAL: public tipo {
 
 struct sector {
     int tamano;
-    sector* nextsector;
+    sector* next_sector;
+    pista* pista_padre;
     vector<int> objeto_ids;
     int ID_sector;
 
-    sector(int tam) {
+    sector(int tam, pista* padre) {
         tamano = tam;
-        nextsector = nullptr;
+        next_sector = nullptr;
+        pista_padre = padre;
         ID_sector = id_sec++;
         todos_sectores.push_back(this);
     }
 };
 
 struct pista {
-    vector<sector> sectores;
-    pista* nextpista;
+    vector<sector*> sectores;
+    pista* next_pista;
+    superficie* superficie_padre;
     vector<int> objeto_ids;
     int ID_pista;
 
-    pista(int numSectores, int tamSector) {
-        nextpista = nullptr;
+    pista(int numSectores, int tamSector, superficie* padre) {
+        next_pista = nullptr;
+        superficie_padre = padre;
         ID_pista = id_pis++;
         todas_pistas.push_back(this);
 
         for (int i = 0; i < numSectores; i++) {
-            sector xd(tamSector);
-            sectores.push_back(xd);
+            sector* nuevo_sector = new sector(tamSector, this);
+            sectores.push_back(nuevo_sector);
         }
     }
 };
 
 struct superficie {
-    vector<pista> pistas;
-    superficie* nextsuperficie;
+    vector<pista*> pistas;
+    superficie* next_superficie;
+    disco* disco_padre;
     vector<int> objeto_ids;
     int ID_superficie;
 
-    superficie(int numPistas, int numSectores, int tamSector) {
-        nextsuperficie = nullptr;
+    superficie(int numPistas, int numSectores, int tamSector, disco* padre) {
+        next_superficie = nullptr;
+        disco_padre = padre;
         ID_superficie = id_sup++;
         todas_superficies.push_back(this);
 
         for (int i = 0; i < numPistas; i++) {
-            pista xd(numSectores, tamSector);
-            pistas.push_back(xd);
+            pista* nueva_pista = new pista(numSectores, tamSector, this);
+            pistas.push_back(nueva_pista);
         }
     }
 };
 
 struct disco {
-    vector<superficie> superficies;
-    disco* nextdisco;
+    vector<superficie*> superficies;
+    disco* next_disco;
+    discodu* dicodu_padre;
     vector<int> objeto_ids;
     int ID_disco;
 
-    disco(int numPistas, int numSectores, int tamSector) {
-        nextdisco = nullptr;
+    disco(int numPistas, int numSectores, int tamSector, discodu* padre) {
+        next_disco = nullptr;
+        dicodu_padre = padre;
         ID_disco = id_dis++;
         todos_discos.push_back(this);
 
         for (int i = 0; i < 2; i++) {
-            superficie xd(numPistas, numSectores, tamSector);
-            superficies.push_back(xd);
+            superficie* nueva_superficie = new superficie(numPistas, numSectores, tamSector, this);
+            superficies.push_back(nueva_superficie);
         }
     }
 };
 
-struct dicodu {
-    vector<disco> discos;
+struct discodu {
+    vector<disco*> discos;
     vector<int> objeto_ids;
     int numDiscos;
     int numSuperficies;
@@ -166,50 +175,41 @@ struct dicodu {
     disco* ultimo_disco_usado;
 
     void enlazar_elementos() {
-        ultimo_sector_usado = todos_sectores[0];
-        ultima_pista_usada = todas_pistas[0];
-        ultima_superficie_usada = todas_superficies[0];
-        ultimo_disco_usado = todos_discos[0];
+        if (!todos_sectores.empty()) ultimo_sector_usado = todos_sectores[0];
+        if (!todas_pistas.empty()) ultima_pista_usada = todas_pistas[0];
+        if (!todas_superficies.empty()) ultima_superficie_usada = todas_superficies[0];
+        if (!todos_discos.empty()) ultimo_disco_usado = todos_discos[0];
         
         for(size_t i = 0; i < todos_sectores.size() - 1; i++) {
-            todos_sectores[i]->nextsector = todos_sectores[i + 1];
+            todos_sectores[i]->next_sector = todos_sectores[i + 1];
         }
         if (!todos_sectores.empty()) {
-            todos_sectores.back()->nextsector = nullptr;
+            todos_sectores.back()->next_sector = nullptr;
         }
-
 
         for(size_t i = 0; i < todas_pistas.size() - 1; i++) {
-            todas_pistas[i]->nextpista = todas_pistas[i + 1];
+            todas_pistas[i]->next_pista = todas_pistas[i + 1];
         }
         if (!todas_pistas.empty()) {
-            todas_pistas.back()->nextpista = nullptr;
+            todas_pistas.back()->next_pista = nullptr;
         }
-
 
         for(size_t i = 0; i < todas_superficies.size() - 1; i++) {
-            todas_superficies[i]->nextsuperficie = todas_superficies[i + 1];
+            todas_superficies[i]->next_superficie = todas_superficies[i + 1];
         }
         if (!todas_superficies.empty()) {
-            todas_superficies.back()->nextsuperficie = nullptr;
+            todas_superficies.back()->next_superficie = nullptr;
         }
-
 
         for(size_t i = 0; i < todos_discos.size() - 1; i++) {
-            todos_discos[i]->nextdisco = todos_discos[i + 1];
+            todos_discos[i]->next_disco = todos_discos[i + 1];
         }
         if (!todos_discos.empty()) {
-            todos_discos.back()->nextdisco = nullptr;
+            todos_discos.back()->next_disco = nullptr;
         }
-
-
-        todos_sectores.clear();
-        todas_pistas.clear();
-        todas_superficies.clear();
-        todos_discos.clear();
     }
 
-    dicodu(int nDiscos, int nPistas, int nSectores, int tSector) {
+    discodu(int nDiscos, int nPistas, int nSectores, int tSector) {
         todos_sectores.clear();
         todas_pistas.clear();
         todas_superficies.clear();
@@ -222,12 +222,33 @@ struct dicodu {
         tamSector = tSector;
 
         cout << "Creando dicodu con " << numDiscos << " discos" << endl;
+        
         for (int i = 0; i < numDiscos; i++) {
-            disco xd(numPistas, numSectores, tamSector);
-            discos.push_back(xd);
+            disco* nuevo_disco = new disco(numPistas, numSectores, tamSector, this);
+            discos.push_back(nuevo_disco);
         }
 
         enlazar_elementos();
+
+        todos_sectores.clear();
+        todas_pistas.clear();
+        todas_superficies.clear();
+        todos_discos.clear();
+    }
+
+    ~discodu() {
+        for (auto disco : discos) {
+            for (auto superficie : disco->superficies) {
+                for (auto pista : superficie->pistas) {
+                    for (auto sector : pista->sectores) {
+                        delete sector;
+                    }
+                    delete pista;
+                }
+                delete superficie;
+            }
+            delete disco;
+        }
     }
 };
 
@@ -322,7 +343,7 @@ public:
 
 
 int main() {
-    dicodu d(2, 3, 4, 10);
+    discodu d(2, 3, 4, 10);
 
     
     cout << "IDs asignados:\n";
